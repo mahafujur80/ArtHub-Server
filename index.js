@@ -57,6 +57,12 @@ app.get('/api/artwork', async(req, res)=>{
     const result = await artWorksCollection.find().toArray();
     res.json(result);
 });
+//get artwork by id
+app.get('/api/artwork/:id', async(req, res)=>{
+  const { id } = req.params;
+  const result = await artWorksCollection.findOne({ _id: new ObjectId(id) });
+  res.json(result);
+});
 
 
 
