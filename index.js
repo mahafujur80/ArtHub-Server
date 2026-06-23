@@ -28,6 +28,8 @@ async function run() {
 
   const ArtHubDB = client.db('ArtHub');
   const artWorksCollection = ArtHubDB.collection('artworks');
+  const paymentsCollection = ArtHubDB.collection('payments');
+  const plansCollection = ArtHubDB.collection('plans');
 
 
   // artist api
@@ -64,7 +66,28 @@ app.get('/api/artwork/:id', async(req, res)=>{
   res.json(result);
 });
 
+// PAYMENTS RELATED API
+app.post('/api/payments', async (req, res) => {
+    const data = req.body;
+    const sessionId = data.sessionId;
+    const existingPayment = await paymentsCollection.findOne({ sessionId });
+    if(existingPayment){
+      return
+    }
+    
+    const newPayment = {
+      ...data,
+      createAt: new Date(),
+    }
+    const result = await paymentsCollection.insertOne(newPayment);
+    res.json(result);
+  });
 
+//PLANS RELATED API
+app.get('/api/plans', async (req, res) => {
+    const result = await plansCollection.find().toArray();
+    res.json(result);
+  });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
