@@ -69,7 +69,7 @@ async function run() {
     });
    app.get('/api/purchases', async (req, res) => {
      const userId = req.query.userId
-      const result = await purchasesCollection.find({_id: new ObjectId(userId)}).toArray();
+      const result = await purchasesCollection.find({buyerId: userId}).toArray();
       res.json(result);
     });
     // PAYMENTS RELATED API
@@ -108,7 +108,19 @@ async function run() {
   app.post('/api/subscriptions', async (req, res) =>{
       const data = req.body;
       const userId = data.buyerId;
-      const user = await 
+      const sessionId = data.sessionId;
+      const existingPayment = await paymentsCollection.findOne({ sessionId });
+      if (existingPayment) {
+        return
+      }
+
+      const filter = ({_id: new ObjectId(userId)});
+      const updateDocument = {
+        $set:{
+          plan: data.priceId,
+        }
+      }
+      await userCollection.updateOne(filter, updateDocument);
       
       const newSubscription = {
         ...data,
@@ -120,7 +132,7 @@ async function run() {
     //PLANS RELATED API
     app.get('/api/plans', async (req, res) => {
       const plan = req.query.plan;
-      const result = await plansCollection.findOne({ plan });
+      const result = await plansCollection.findOne({plan_id: plan});
       res.json(result);
     });
 
