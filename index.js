@@ -67,6 +67,8 @@ async function run() {
       const result = await artWorksCollection.findOne({ _id: new ObjectId(id) });
       res.json(result);
     });
+
+    //get artwork by user id
    app.get('/api/purchases', async (req, res) => {
      const userId = req.query.userId
       const result = await purchasesCollection.find({buyerId: userId}).toArray();
@@ -99,6 +101,7 @@ async function run() {
         buyerName,
         amount,
         sessionId,
+        type,
         createAt: new Date(),
       }
       await paymentsCollection.insertOne(newPayment);
@@ -128,6 +131,15 @@ async function run() {
       }
       await paymentsCollection.insertOne(newSubscription);
   });
+// get payments history by buyer id
+app.get('/api/payments', async (req, res) => {
+  const userId = req.query.userId
+  const result = await paymentsCollection.find({
+    buyerId: userId,
+    type: 'payment'
+  }).toArray();
+  res.json(result);
+});
 
     //PLANS RELATED API
     app.get('/api/plans', async (req, res) => {
