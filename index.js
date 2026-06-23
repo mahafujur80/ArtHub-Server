@@ -68,11 +68,14 @@ async function run() {
       res.json(result);
     });
 
-    //get artwork by user id
+    //get buy artwork by user id
     app.get('/api/purchases', async (req, res) => {
-      const userId = req.query.userId
-      const result = await purchasesCollection.find({ buyerId: userId }).toArray();
-      res.json(result);
+      const {userId, page = 1, limit = 6} = req.query;
+      const skip = (Number(page) - 1) * Number(limit);
+      const result = await purchasesCollection.find({ buyerId: userId }).skip(skip).limit(Number(limit)).toArray();
+      const totalData = await purchasesCollection.countDocuments({ buyerId: userId });
+      const totalPage = Math.ceil(totalData / Number(limit));
+      res.json({data: result, page: Number(page), totalPage});
     });
     // PAYMENTS RELATED API
     app.post('/api/payments', async (req, res) => {
