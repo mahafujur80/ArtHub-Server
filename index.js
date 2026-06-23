@@ -69,9 +69,9 @@ async function run() {
     });
 
     //get artwork by user id
-   app.get('/api/purchases', async (req, res) => {
-     const userId = req.query.userId
-      const result = await purchasesCollection.find({buyerId: userId}).toArray();
+    app.get('/api/purchases', async (req, res) => {
+      const userId = req.query.userId
+      const result = await purchasesCollection.find({ buyerId: userId }).toArray();
       res.json(result);
     });
     // PAYMENTS RELATED API
@@ -107,8 +107,8 @@ async function run() {
       await paymentsCollection.insertOne(newPayment);
     });
 
-  // subscriptions
-  app.post('/api/subscriptions', async (req, res) =>{
+    // subscriptions
+    app.post('/api/subscriptions', async (req, res) => {
       const data = req.body;
       const userId = data.buyerId;
       const sessionId = data.sessionId;
@@ -117,34 +117,37 @@ async function run() {
         return
       }
 
-      const filter = ({_id: new ObjectId(userId)});
+      const filter = ({ _id: new ObjectId(userId) });
       const updateDocument = {
-        $set:{
+        $set: {
           plan: data.priceId,
         }
       }
       await userCollection.updateOne(filter, updateDocument);
-      
+
       const newSubscription = {
         ...data,
         createAt: new Date(),
       }
       await paymentsCollection.insertOne(newSubscription);
-  });
-// get payments history by buyer id
-app.get('/api/payments', async (req, res) => {
-  const userId = req.query.userId
-  const result = await paymentsCollection.find({
-    buyerId: userId,
-    type: 'payment'
-  }).toArray();
-  res.json(result);
-});
+    });
+    // get payments history by buyer id
+    app.get('/api/payments', async (req, res) => {
+      const { userId, page = 1, limit = 9 } = req.query;
+      const skip = (Number(page) - 1) * Number(limit);
+
+      const result = await paymentsCollection.find({buyerId: userId,type: 'payment'}).skip(skip).limit(Number(limit)).toArray();
+
+      const totalData = await paymentsCollection.countDocuments({buyerId: userId,type: 'payment'})
+      const totalPage = Math.ceil(totalData / Number(limit));
+
+      res.json({data: result, page: Number(page), totalPage});
+    });
 
     //PLANS RELATED API
     app.get('/api/plans', async (req, res) => {
       const plan = req.query.plan;
-      const result = await plansCollection.findOne({plan_id: plan});
+      const result = await plansCollection.findOne({ plan_id: plan });
       res.json(result);
     });
 
