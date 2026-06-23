@@ -77,6 +77,12 @@ async function run() {
       const totalPage = Math.ceil(totalData / Number(limit));
       res.json({data: result, page: Number(page), totalPage});
     });
+    // get my total purch for overview page 
+    app.get('/api/purchases/total', async (req, res) => {
+      const {userId} = req.query;
+      const result = await purchasesCollection.find({ buyerId: userId }).toArray();
+      res.json(result);
+    });
     // PAYMENTS RELATED API
     app.post('/api/payments', async (req, res) => {
       const data = req.body;
