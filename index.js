@@ -44,6 +44,16 @@ async function run() {
       const result = await artWorksCollection.insertOne(newArtwork);
       res.json(result);
     });
+// get artworks by artist id
+app.get('/api/my/artwork', async(req, res)=>{
+  const {artistId, page=1, limit=10} = req.query;
+  const skip = (Number(page)-1)*Number(limit);
+
+  const result = await artWorksCollection.find({artistId: artistId}).skip(skip).limit(Number(limit)).toArray();
+  const totalData = await artWorksCollection.countDocuments({artistId: artistId});
+  const totalPage = Math.ceil(totalData/Number(limit));
+  res.json({data: result, page: Number(page), totalPage});
+})
     // delete artwork
     app.delete('/api/artwork/:id', async (req, res) => {
       const { id } = req.params;
@@ -58,6 +68,7 @@ async function run() {
     });
     // get artworks
     app.get('/api/artwork', async (req, res) => {
+      const {userId} = req.query;
       const result = await artWorksCollection.find().toArray();
       res.json(result);
     });
