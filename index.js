@@ -34,8 +34,16 @@ async function run() {
     const userCollection = ArtHubDB.collection('user');
 
 
-    // artist api
-    app.post('/api/artists', async (req, res) => {
+// ARTIST OPERATIONS API's
+
+// get seller payments history by seller id
+    app.get('/api/artist/sales', async (req, res) =>{
+         const {artistId } = req.query;
+         const result = await paymentsCollection.find({artistId: artistId,type: 'payment'}).toArray();
+         res.json(result);
+    });
+// create artwork by artist 
+app.post('/api/artists', async (req, res) => {
       const data = req.body;
       const newArtwork = {
         ...data,
@@ -54,12 +62,13 @@ app.get('/api/my/artwork', async(req, res)=>{
   const totalPage = Math.ceil(totalData/Number(limit));
   res.json({data: result, page: Number(page), totalPage});
 })
-    // delete artwork
+// delete artwork
     app.delete('/api/artwork/:id', async (req, res) => {
       const { id } = req.params;
       const result = await artWorksCollection.deleteOne({ _id: new ObjectId(id) });
       res.json(result);
     });
+    // update artwork by artist
     app.patch('/api/artwork/:id', async (req, res) => {
       const { id } = req.params;
       const data = req.body;
@@ -68,7 +77,6 @@ app.get('/api/my/artwork', async(req, res)=>{
     });
     // get artworks
     app.get('/api/artwork', async (req, res) => {
-      const {userId} = req.query;
       const result = await artWorksCollection.find().toArray();
       res.json(result);
     });
@@ -88,7 +96,7 @@ app.get('/api/my/artwork', async(req, res)=>{
       const totalPage = Math.ceil(totalData / Number(limit));
       res.json({data: result, page: Number(page), totalPage});
     });
-    // get my total purch for overview page 
+    // get my total purchase for overview page 
     app.get('/api/purchases/total', async (req, res) => {
       const {userId} = req.query;
       const result = await purchasesCollection.find({ buyerId: userId }).toArray();
@@ -151,6 +159,8 @@ app.get('/api/my/artwork', async(req, res)=>{
       }
       await paymentsCollection.insertOne(newSubscription);
     });
+
+
     // get payments history by buyer id
     app.get('/api/payments', async (req, res) => {
       const { userId, page = 1, limit = 9 } = req.query;
@@ -163,6 +173,7 @@ app.get('/api/my/artwork', async(req, res)=>{
 
       res.json({data: result, page: Number(page), totalPage});
     });
+    
 
     //PLANS RELATED API
     app.get('/api/plans', async (req, res) => {
