@@ -41,7 +41,7 @@ async function run() {
          const result = await paymentsCollection.find({artistId: artistId,type: 'payment'}).skip(skip).limit(Number(limit)).toArray();
          const totalData = await paymentsCollection.countDocuments({artistId: artistId,type: 'payment'});
          // all result for overview page data 
-         const resultAll = await paymentsCollection.find({artistId: artistId,type: 'payment'}).toArray();
+         const resultAll = await paymentsCollection.find({artistId: artistId,type: 'payment'}).sort({createAt: -1}).toArray();
          const totalPage = Math.ceil(totalData/Number(limit));
          res.json({data: result, page: Number(page), totalPage, resultAll: resultAll});
     });
@@ -138,7 +138,7 @@ app.get('/api/my/artwork', async(req, res)=>{
     // PAYMENTS RELATED API
     app.post('/api/payments', async (req, res) => {
       const data = req.body;
-      const { sessionId, type, amount, artistName, artworkName, artworkId, image, artistId, buyerId, buyerName } = data;
+      const { sessionId, customerEmail, type, amount, artistName, artworkName, artworkId, image, artistId, buyerId, buyerName } = data;
 
       const existingPayment = await paymentsCollection.findOne({ sessionId });
       if (existingPayment) {
@@ -150,6 +150,7 @@ app.get('/api/my/artwork', async(req, res)=>{
         artworkName,
         artworkId,
         buyerId,
+        customerEmail,
       }
       await purchasesCollection.insertOne(purchaseObj);
 
@@ -163,6 +164,7 @@ app.get('/api/my/artwork', async(req, res)=>{
         amount,
         sessionId,
         type,
+        customerEmail,
         createAt: new Date(),
       }
       await paymentsCollection.insertOne(newPayment);
@@ -199,7 +201,7 @@ app.get('/api/my/artwork', async(req, res)=>{
       const { userId, page = 1, limit = 9 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
-      const result = await paymentsCollection.find({buyerId: userId,type: 'payment'}).skip(skip).limit(Number(limit)).toArray();
+      const result = await paymentsCollection.find({buyerId: userId,type: 'payment'}).sort({createAt: -1}).skip(skip).limit(Number(limit)).toArray();
 
       const totalData = await paymentsCollection.countDocuments({buyerId: userId,type: 'payment'})
       const totalPage = Math.ceil(totalData / Number(limit));
@@ -217,10 +219,24 @@ app.get('/api/admin/users', async (req, res) => {
 
   const skip = (Number(page) - 1) * Number(limit);
   const result = await userCollection.find().skip(skip).limit(Number(limit)).toArray();
-  const totalData = await userCollection.countDocuments({});
+  const totalData = await userCollection.countDocuments();
   const totalPage = Math.ceil(totalData / Number(limit));
   res.json({ data: result, page: Number(page), totalPage });
 });
+
+// admin get all users transactions
+app.get('/api/admin/transactions', async (req, res) => {
+  const {role, page = 1, limit = 11 } = req.query; 
+  if(role !== 'admin'){
+    return res.status(401).json({message: 'Unauthorized'});
+  }
+  const skip = (Number(page) - 1) * Number(limit);
+  const result = await paymentsCollection.find().sort({createAt: -1}).skip(skip).limit(Number(limit)).toArray();
+  const totalData = await paymentsCollection.countDocuments();
+  const totalPage = Math.ceil(totalData / Number(limit));
+  res.json({ data: result, page: Number(page), totalPage });
+});
+// admin get all artwork 
     
 
     //PLANS RELATED API
