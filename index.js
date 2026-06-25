@@ -9,8 +9,6 @@ app.use(express.json());
 app.use(cors());
 
 
-
-
 const uri = process.env.MONGODB_URI;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -38,9 +36,14 @@ async function run() {
 
 // get seller payments history by seller id
     app.get('/api/artist/sales', async (req, res) =>{
-         const {artistId } = req.query;
-         const result = await paymentsCollection.find({artistId: artistId,type: 'payment'}).toArray();
-         res.json(result);
+         const {artistId, page=1, limit=11 } = req.query;
+         const skip = (Number(page)-1)*Number(limit);
+         const result = await paymentsCollection.find({artistId: artistId,type: 'payment'}).skip(skip).limit(Number(limit)).toArray();
+         const totalData = await paymentsCollection.countDocuments({artistId: artistId,type: 'payment'});
+         // all result for overview page data 
+         const resultAll = await paymentsCollection.find({artistId: artistId,type: 'payment'}).toArray();
+         const totalPage = Math.ceil(totalData/Number(limit));
+         res.json({data: result, page: Number(page), totalPage, resultAll: resultAll});
     });
 // create artwork by artist 
 app.post('/api/artists', async (req, res) => {
@@ -59,8 +62,9 @@ app.get('/api/my/artwork', async(req, res)=>{
 
   const result = await artWorksCollection.find({artistId: artistId}).skip(skip).limit(Number(limit)).toArray();
   const totalData = await artWorksCollection.countDocuments({artistId: artistId});
+  const allArtwork = await artWorksCollection.find({artistId: artistId}).sort({createAt: -1}).toArray();
   const totalPage = Math.ceil(totalData/Number(limit));
-  res.json({data: result, page: Number(page), totalPage});
+  res.json({data: result, page: Number(page), totalPage, totalData, allArtwork: allArtwork});
 })
 // delete artwork
     app.delete('/api/artwork/:id', async (req, res) => {
@@ -77,8 +81,37 @@ app.get('/api/my/artwork', async(req, res)=>{
     });
     // get artworks
     app.get('/api/artwork', async (req, res) => {
-      const result = await artWorksCollection.find().toArray();
-      res.json(result);
+      const{search, minPrice, maxPrice, category, sort, page=1, limit=12} = req.query;
+      let query = {};
+
+      if(search){
+        query.$or = [
+          {title: {$regex: search, $options: 'i'}},
+          {artist: {$regex: search, $options: 'i'}},
+        ]
+      };
+      if(minPrice) query.price = {$gte: Number(minPrice)};
+      if(maxPrice) query.price = {$lte: Number(maxPrice)};
+      if(category && category !== 'All'){
+        query.category = category;
+      }
+
+      let sortOption = {};
+      if(sort === 'Latest'){
+        sortOption = { createAt: -1 }
+      }else if(sort === 'Oldest'){
+        sortOption = { createAt: 1 }
+      }else if(sort === 'Price Low-High'){
+        sortOption = { price: 1 }
+      }else if(sort === 'Price High-Low'){
+        sortOption = { price: -1 }
+      }
+
+      const skip = (Number(page)-1)*Number(limit);
+      const result = await artWorksCollection.find(query).skip(skip).limit(Number(limit)).sort(sortOption).toArray();
+      const totalData = await artWorksCollection.countDocuments(query);
+      const totalPage = Math.ceil(totalData/Number(limit));
+      res.json({data: result, page: Number(page), totalPage});
     });
     //get artwork by id
     app.get('/api/artwork/:id', async (req, res) => {
@@ -96,7 +129,7 @@ app.get('/api/my/artwork', async(req, res)=>{
       const totalPage = Math.ceil(totalData / Number(limit));
       res.json({data: result, page: Number(page), totalPage});
     });
-    // get my total purchase for overview page 
+    // get my total purchase for overview page nodemon index.js
     app.get('/api/purchases/total', async (req, res) => {
       const {userId} = req.query;
       const result = await purchasesCollection.find({ buyerId: userId }).toArray();
@@ -173,10 +206,25 @@ app.get('/api/my/artwork', async(req, res)=>{
 
       res.json({data: result, page: Number(page), totalPage});
     });
+
+// ADMIN CONSTRUCTOR API
+app.get('/api/admin/users', async (req, res) => {
+  const {role, page = 1, limit = 10 } = req.query;
+
+  if(role !== 'admin'){
+    return res.status(401).json({message: 'Unauthorized'});
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const result = await userCollection.find().skip(skip).limit(Number(limit)).toArray();
+  const totalData = await userCollection.countDocuments({});
+  const totalPage = Math.ceil(totalData / Number(limit));
+  res.json({ data: result, page: Number(page), totalPage });
+});
     
 
     //PLANS RELATED API
-    app.get('/api/plans', async (req, res) => {
+    app.get('/api/plans', async (req, res) => {  
       const plan = req.query.plan;
       const result = await plansCollection.findOne({ plan_id: plan });
       res.json(result);
