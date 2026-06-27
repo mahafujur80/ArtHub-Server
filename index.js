@@ -14,7 +14,7 @@ const JWKS = createRemoteJWKSet(
 )
 const verifyToken = async(req, res, next) => {
   const tokenData = req.headers.authorization;
-  console.log(tokenData, 'tokendata');
+
   if (!tokenData) {
     return res.status(401).json({ message: 'Unauthorized' });
   };
@@ -265,8 +265,7 @@ async function run() {
 
       res.json({ data: result, page: Number(page), totalPage });
     });
-
-  //COMMENTS API
+//COMMENTS API
   app.post("/api/user/comment", verifyToken, async(req, res)=>{
     console.log(req.user)
     try{
@@ -317,7 +316,21 @@ app.get('/api/user/purchaseProved',verifyToken, async(req, res)=>{
   const purchaseExist = await purchasesCollection.findOne({artworkId, buyerId: userId})
   console.log(purchaseExist)
   res.json(purchaseExist)
-})
+});
+// delete comment by userId
+app.delete('/api/user/comment/:id', async(req, res)=>{
+  try{
+  const {id} = req.params;
+  const result = await commentCollection.deleteOne({_id: new ObjectId(id)})
+  res.json({result, success: true, message: 'Comment deleted successfully'})
+  }catch(error){
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong',
+      error,
+    });
+  } 
+});
 
     // ADMIN CONSTRUCTOR API 
     // admin get all users
