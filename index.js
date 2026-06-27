@@ -25,13 +25,40 @@ const verifyToken = async(req, res, next) => {
 
   try{
     const { payload } = await jwtVerify(token, JWKS);
+    req.user = payload;  // sent payload to req.user
     next();
-    console.log(payload, 'payload data munna vai');
   }
   catch (error) {
     return res.status(403).json({ message: 'Forbidden' });
   }
-}
+};
+
+// artist verification
+const verifyArtist = async(req, res, next) =>{
+  const user = req.user;
+  if(user?.role !== 'artist'){
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+};
+
+// admin verification
+const verifyAdmin = async(req, res, next) =>{
+  const user = req.user;
+  if(user?.role !== 'admin'){
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+};
+
+// buyer verification
+const verifyBuyer = async(req, res, next) =>{
+  const user = req.user;
+  if(user?.role !== 'buyer'){
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+};
 
 
 const uri = process.env.MONGODB_URI;
@@ -55,12 +82,13 @@ async function run() {
     const plansCollection = ArtHubDB.collection('plans');
     const purchasesCollection = ArtHubDB.collection('purchases');
     const userCollection = ArtHubDB.collection('user');
+    const commentCollection = ArtHubDB.collection('comment');
 
 
     // ARTIST OPERATIONS API's
 
-    // get seller payments history by seller id
-    app.get('/api/artist/sales', async (req, res) => {
+    // get artist payments history by artist id
+    app.get('/api/artist/sales', verifyToken, verifyArtist, async (req, res) => {
       const { artistId, page = 1, limit = 11 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
       const result = await paymentsCollection.find({ artistId: artistId, type: 'payment' }).skip(skip).limit(Number(limit)).toArray();
@@ -71,7 +99,7 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage, resultAll: resultAll });
     });
     // create artwork by artist 
-    app.post('/api/artists', async (req, res) => {
+    app.post('/api/artists', verifyToken, verifyArtist, async (req, res) => {
       const data = req.body;
       const newArtwork = {
         ...data,
@@ -81,7 +109,7 @@ async function run() {
       res.json(result);
     });
     // get artworks by artist id
-    app.get('/api/my/artwork', async (req, res) => {
+    app.get('/api/my/artwork', verifyToken, verifyArtist, async (req, res) => {
       const { artistId, page = 1, limit = 10 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
@@ -92,13 +120,13 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage, totalData, allArtwork: allArtwork });
     })
     // delete artwork
-    app.delete('/api/artwork/:id', async (req, res) => {
+    app.delete('/api/artwork/:id', verifyToken, verifyArtist, async (req, res) => {
       const { id } = req.params;
       const result = await artWorksCollection.deleteOne({ _id: new ObjectId(id) });
       res.json(result);
     });
     // update artwork by artist
-    app.patch('/api/artwork/:id', async (req, res) => {
+    app.patch('/api/artwork/:id', verifyToken, verifyArtist, async (req, res) => {
       const { id } = req.params;
       const data = req.body;
       const result = await artWorksCollection.updateOne({ _id: new ObjectId(id) }, { $set: data });
@@ -151,7 +179,7 @@ async function run() {
     });
 
     //get buy artwork by user id
-    app.get('/api/purchases', async (req, res) => {
+    app.get('/api/purchases', verifyToken, verifyBuyer, async (req, res) => {
       const { userId, page = 1, limit = 6 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
       const result = await purchasesCollection.find({ buyerId: userId }).skip(skip).limit(Number(limit)).toArray();
@@ -159,14 +187,14 @@ async function run() {
       const totalPage = Math.ceil(totalData / Number(limit));
       res.json({ data: result, page: Number(page), totalPage });
     });
-    // get my total purchase for overview page
-    app.get('/api/purchases/total', async (req, res) => {
+    // get my total purchase for overview page buyer maybe 
+    app.get('/api/purchases/total', verifyToken, verifyBuyer, async (req, res) => {
       const { userId } = req.query;
       const result = await purchasesCollection.find({ buyerId: userId }).toArray();
       res.json(result);
     });
     // PAYMENTS RELATED API
-    app.post('/api/payments', async (req, res) => {
+    app.post('/api/payments', verifyToken, verifyBuyer, async (req, res) => {
       const data = req.body;
       const { sessionId, customerEmail, type, amount, artistName, artworkName, artworkId, image, artistId, buyerId, buyerName } = data;
 
@@ -201,7 +229,7 @@ async function run() {
     });
 
     // subscriptions
-    app.post('/api/subscriptions', async (req, res) => {
+    app.post('/api/subscriptions', verifyToken, verifyBuyer, async (req, res) => {
       const data = req.body;
       const userId = data.buyerId;
       const sessionId = data.sessionId;
@@ -226,8 +254,8 @@ async function run() {
     });
 
     // get payments history by buyer id
-    app.get('/api/payments',verifyToken, async (req, res) => {
-      const { userId, page = 1, limit = 9 } = req.query;
+    app.get('/api/payments',verifyToken, verifyBuyer, async (req, res) => {
+      const { userId, page = 1, limit = 10 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const result = await paymentsCollection.find({ buyerId: userId, type: 'payment' }).sort({ createAt: -1 }).skip(skip).limit(Number(limit)).toArray();
@@ -238,8 +266,62 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage });
     });
 
-    // ADMIN CONSTRUCTOR API
-    app.get('/api/admin/users', async (req, res) => {
+  //COMMENTS API
+  app.post("/api/user/comment", verifyToken, async(req, res)=>{
+    console.log(req.user)
+    try{
+      const data = req.body;
+      const { artWorkId } = req.query;
+      const { userId, artworkId, comment, userName } = data;
+      const buyExist = await purchasesCollection.findOne({ artworkId: artWorkId,  buyerId: req.user.id });
+
+      if(!buyExist){
+        return res.status(400).json({
+          success: false,
+          message: 'Artwork not found',
+        });
+      }
+      
+      const commentObj = {
+        userId,
+        artworkId,
+        comment,
+        userName,
+        createAt: new Date(),
+      }
+      const result = await commentCollection.insertOne(commentObj);
+      res.status(200).json({
+        result,
+        success: true,
+        message: 'Comment added successfully',
+      });
+      
+    }catch(error){
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error,
+      });
+    }
+  });
+
+// get comments 
+app.get('/api/user/comment', verifyToken, async(req, res)=>{
+  const {artworkId} = req.query;
+  const result = await commentCollection.find({ artworkId: artworkId }).sort({createAt: -1}).toArray();
+  res.json(result);
+});
+// user artwork purchase or not check
+app.get('/api/user/purchaseProved',verifyToken, async(req, res)=>{
+  const {userId, artworkId} = req.query;
+  const purchaseExist = await purchasesCollection.findOne({artworkId, buyerId: userId})
+  console.log(purchaseExist)
+  res.json(purchaseExist)
+})
+
+    // ADMIN CONSTRUCTOR API 
+    // admin get all users
+    app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
       const { role, page = 1, limit = 10 } = req.query;
 
       if (role !== 'admin') {
@@ -254,7 +336,7 @@ async function run() {
     });
 
     // admin get all users transactions
-    app.get('/api/admin/transactions', async (req, res) => {
+    app.get('/api/admin/transactions', verifyToken, verifyAdmin, async (req, res) => {
       const { role, page = 1, limit = 11 } = req.query;
       if (role !== 'admin') {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -266,7 +348,7 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage });
     });
     // admin get all artwork 
-    app.get('/api/admin/artworks', async (req, res) => {
+    app.get('/api/admin/artworks', verifyToken, verifyAdmin, async (req, res) => {
       const { role, page = 1, limit = 11 } = req.query;
       if (role !== 'admin') {
         return res.status(401).json({ message: 'Unauthorized' });
@@ -278,13 +360,13 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage });
     });
     // admin delete artwork
-    app.delete('/api/admin/artwork/:id', async (req, res) => {
+    app.delete('/api/admin/artwork/:id', verifyToken, verifyAdmin, async (req, res) => {
       const { id } = req.params;
       const result = await artWorksCollection.deleteOne({ _id: new ObjectId(id) });
       res.json(result);
     });
     // get admin pie chart data
-    app.get('/api/admin/pie', async (req, res) => {
+    app.get('/api/admin/pie', verifyToken, verifyAdmin, async (req, res) => {
       const result = await artWorksCollection.aggregate([
         {
           $group: {
@@ -303,12 +385,12 @@ async function run() {
       res.json(result);
     })
   // admin get all sold artworks
-  app.get('/api/admin/sold', async (req, res) => {
+  app.get('/api/admin/sold', verifyToken, verifyAdmin, async (req, res) => {
     const result = await purchasesCollection.find().toArray();
     res.json(result);
   })
 // get total payments data
-  app.get('/api/admin/payments', async (req, res) => {
+  app.get('/api/admin/payments', verifyToken, verifyAdmin, async (req, res) => {
     const result = await paymentsCollection.find().toArray();
     const totalRevenue = result.reduce((total, sale)=> total + Number(sale.amount), 0);
     res.json(totalRevenue);
