@@ -86,6 +86,18 @@ async function run() {
 
 
     // ARTIST OPERATIONS API's
+  // get artist data by artist id for artwork profile data
+  app.get('/api/artist/profile', verifyToken, async(req, res)=>{
+   const {artistId} = req.query;
+   const artistData = await userCollection.findOne({_id: new ObjectId(artistId)})
+   res.json(artistData)
+  });
+  // get artist data by artist id for artwork profile data
+  app.get('/api/artist/profile/artwork', async(req, res)=>{
+    const {artistId} = req.query;
+    const artistData = await artWorksCollection.find({artistId: artistId}).toArray()
+    res.json(artistData)
+  });
 
     // get artist payments history by artist id
     app.get('/api/artist/sales', verifyToken, verifyArtist, async (req, res) => {
@@ -265,9 +277,11 @@ async function run() {
 
       res.json({ data: result, page: Number(page), totalPage });
     });
+
+
 //COMMENTS API
   app.post("/api/user/comment", verifyToken, async(req, res)=>{
-    console.log(req.user)
+    
     try{
       const data = req.body;
       const { artWorkId } = req.query;
@@ -314,7 +328,7 @@ app.get('/api/user/comment', verifyToken, async(req, res)=>{
 app.get('/api/user/purchaseProved',verifyToken, async(req, res)=>{
   const {userId, artworkId} = req.query;
   const purchaseExist = await purchasesCollection.findOne({artworkId, buyerId: userId})
-  console.log(purchaseExist)
+
   res.json(purchaseExist)
 });
 // delete comment by userId
