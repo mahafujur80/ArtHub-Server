@@ -12,7 +12,7 @@ app.use(cors());
 const JWKS = createRemoteJWKSet(
   new URL(`${process.env.CLIENT_URL_FOR_JWT}/api/auth/jwks`)
 )
-const verifyToken = async(req, res, next) => {
+const verifyToken = async (req, res, next) => {
   const tokenData = req.headers.authorization;
 
   if (!tokenData) {
@@ -23,7 +23,7 @@ const verifyToken = async(req, res, next) => {
     return res.status(401).json({ message: 'Unauthorized' });
   };
 
-  try{
+  try {
     const { payload } = await jwtVerify(token, JWKS);
     req.user = payload;  // sent payload to req.user
     next();
@@ -34,27 +34,27 @@ const verifyToken = async(req, res, next) => {
 };
 
 // artist verification
-const verifyArtist = async(req, res, next) =>{
+const verifyArtist = async (req, res, next) => {
   const user = req.user;
-  if(user?.role !== 'artist'){
+  if (user?.role !== 'artist') {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
 };
 
 // admin verification
-const verifyAdmin = async(req, res, next) =>{
+const verifyAdmin = async (req, res, next) => {
   const user = req.user;
-  if(user?.role !== 'admin'){
+  if (user?.role !== 'admin') {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
 };
 
 // buyer verification
-const verifyBuyer = async(req, res, next) =>{
+const verifyBuyer = async (req, res, next) => {
   const user = req.user;
-  if(user?.role !== 'buyer'){
+  if (user?.role !== 'buyer') {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
@@ -74,7 +74,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const ArtHubDB = client.db('ArtHub');
     const artWorksCollection = ArtHubDB.collection('artworks');
@@ -86,18 +86,18 @@ async function run() {
 
 
     // ARTIST OPERATIONS API's
-  // get artist data by artist id for artwork profile data
-  app.get('/api/artist/profile', verifyToken, async(req, res)=>{
-   const {artistId} = req.query;
-   const artistData = await userCollection.findOne({_id: new ObjectId(artistId)})
-   res.json(artistData)
-  });
-  // get artist data by artist id for artwork profile data
-  app.get('/api/artist/profile/artwork', async(req, res)=>{
-    const {artistId} = req.query;
-    const artistData = await artWorksCollection.find({artistId: artistId}).toArray()
-    res.json(artistData)
-  });
+    // get artist data by artist id for artwork profile data
+    app.get('/api/artist/profile', verifyToken, async (req, res) => {
+      const { artistId } = req.query;
+      const artistData = await userCollection.findOne({ _id: new ObjectId(artistId) })
+      res.json(artistData)
+    });
+    // get artist data by artist id for artwork profile data
+    app.get('/api/artist/profile/artwork', async (req, res) => {
+      const { artistId } = req.query;
+      const artistData = await artWorksCollection.find({ artistId: artistId }).toArray()
+      res.json(artistData)
+    });
 
     // get artist payments history by artist id
     app.get('/api/artist/sales', verifyToken, verifyArtist, async (req, res) => {
@@ -144,11 +144,11 @@ async function run() {
       const result = await artWorksCollection.updateOne({ _id: new ObjectId(id) }, { $set: data });
       res.json(result);
     });
-  //get artwork for feature section 
-  app.get('/api/artwork/features', async(req, res)=>{
-    const result = await artWorksCollection.find().toArray()
-     res.json(result)
-  })
+    //get artwork for feature section 
+    app.get('/api/artwork/features', async (req, res) => {
+      const result = await artWorksCollection.find().toArray()
+      res.json(result)
+    })
     // get artworks
     app.get('/api/artwork', async (req, res) => {
       const { search, minPrice, maxPrice, category, sort, page = 1, limit = 12 } = req.query;
@@ -163,7 +163,7 @@ async function run() {
       if (minPrice) query.price = { $gte: Number(minPrice) };
       if (maxPrice) query.price = { $lte: Number(maxPrice) };
       if (category && category !== 'All') {
-        query.category = category;
+        query.category = category.toLowerCase();
       }
 
       let sortOption = {};
@@ -266,7 +266,7 @@ async function run() {
     });
 
     // get payments history by buyer id
-    app.get('/api/payments',verifyToken, verifyBuyer, async (req, res) => {
+    app.get('/api/payments', verifyToken, verifyBuyer, async (req, res) => {
       const { userId, page = 1, limit = 10 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
@@ -279,93 +279,93 @@ async function run() {
     });
 
 
-//COMMENTS API
-  app.post("/api/user/comment", verifyToken, async(req, res)=>{
-    
-    try{
-      const data = req.body;
-      const { artWorkId } = req.query;
-      const { userId, artworkId, comment, userName } = data;
-      const buyExist = await purchasesCollection.findOne({ artworkId: artWorkId,  buyerId: req.user.id });
+    //COMMENTS API
+    app.post("/api/user/comment", verifyToken, async (req, res) => {
 
-      if(!buyExist){
-        return res.status(400).json({
+      try {
+        const data = req.body;
+        const { artWorkId } = req.query;
+        const { userId, artworkId, comment, userName } = data;
+        const buyExist = await purchasesCollection.findOne({ artworkId: artWorkId, buyerId: req.user.id });
+
+        if (!buyExist) {
+          return res.status(400).json({
+            success: false,
+            message: 'Artwork not found',
+          });
+        }
+
+        const commentObj = {
+          userId,
+          artworkId,
+          comment,
+          userName,
+          createAt: new Date(),
+        }
+        const result = await commentCollection.insertOne(commentObj);
+        res.status(200).json({
+          result,
+          success: true,
+          message: 'Comment added successfully',
+        });
+
+      } catch (error) {
+        res.status(500).json({
           success: false,
-          message: 'Artwork not found',
+          message: 'Internal server error',
+          error,
         });
       }
-      
-      const commentObj = {
-        userId,
-        artworkId,
-        comment,
-        userName,
-        createAt: new Date(),
+    });
+
+    // get comments 
+    app.get('/api/user/comment', verifyToken, async (req, res) => {
+      const { artworkId } = req.query;
+      const result = await commentCollection.find({ artworkId: artworkId }).sort({ createAt: -1 }).toArray();
+      res.json(result);
+    });
+    // user artwork purchase or not check
+    app.get('/api/user/purchaseProved', verifyToken, async (req, res) => {
+      const { userId, artworkId } = req.query;
+      const purchaseExist = await purchasesCollection.findOne({ artworkId, buyerId: userId })
+
+      res.json(purchaseExist)
+    });
+    // delete comment by userId
+    app.delete('/api/user/comment/:id', verifyToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const result = await commentCollection.deleteOne({ _id: new ObjectId(id), userId: req.user.id })
+        res.json({ result, success: true, message: 'Comment deleted successfully' })
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: 'Something went wrong',
+          error,
+        });
       }
-      const result = await commentCollection.insertOne(commentObj);
-      res.status(200).json({
-        result,
-        success: true,
-        message: 'Comment added successfully',
-      });
-      
-    }catch(error){
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error,
-      });
-    }
-  });
-
-// get comments 
-app.get('/api/user/comment', verifyToken, async(req, res)=>{
-  const {artworkId} = req.query;
-  const result = await commentCollection.find({ artworkId: artworkId }).sort({createAt: -1}).toArray();
-  res.json(result);
-});
-// user artwork purchase or not check
-app.get('/api/user/purchaseProved',verifyToken, async(req, res)=>{
-  const {userId, artworkId} = req.query;
-  const purchaseExist = await purchasesCollection.findOne({artworkId, buyerId: userId})
-
-  res.json(purchaseExist)
-});
-// delete comment by userId
-app.delete('/api/user/comment/:id',verifyToken, async(req, res)=>{
-  try{
-  const {id} = req.params;
-  const result = await commentCollection.deleteOne({_id: new ObjectId(id), userId: req.user.id})
-  res.json({result, success: true, message: 'Comment deleted successfully'})
-  }catch(error){
-    res.status(500).json({
-      success: false,
-      message: 'Something went wrong',
-      error,
     });
-  } 
-});
-// update comment by userId
-app.patch('/api/user/comment/:id',verifyToken, async(req, res)=>{
-  try{
-  const {id} = req.params;
-  const data = req.body;
-  const filter = {_id: new ObjectId(id), userId: req.user.id};
-  const updateDocument = {
-    $set:{
-      comment: data.comment,
-    }
-  }
-  const result = await commentCollection.updateOne(filter, updateDocument)
-  res.json({result, success: true, message: 'Comment updated successfully'})
-  }catch(error){
-    res.status(500).json({
-      success: false,
-      message: 'Something went wrong',
-      error,
+    // update comment by userId
+    app.patch('/api/user/comment/:id', verifyToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const data = req.body;
+        const filter = { _id: new ObjectId(id), userId: req.user.id };
+        const updateDocument = {
+          $set: {
+            comment: data.comment,
+          }
+        }
+        const result = await commentCollection.updateOne(filter, updateDocument)
+        res.json({ result, success: true, message: 'Comment updated successfully' })
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: 'Something went wrong',
+          error,
+        });
+      }
     });
-  } 
-});
 
     // ADMIN CONSTRUCTOR API 
     // admin get all users
@@ -382,6 +382,27 @@ app.patch('/api/user/comment/:id',verifyToken, async(req, res)=>{
       const totalPage = Math.ceil(totalData / Number(limit));
       res.json({ data: result, page: Number(page), totalPage });
     });
+    //admin updater user role using user id
+    app.patch('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const { userId } = req.query;
+        const roleData = req.body;
+        const filter = { _id: new ObjectId(userId) };
+        const updateDocument = {
+          $set: {
+            role: roleData,
+          }
+        }
+        const result = await userCollection.updateOne(filter, updateDocument)
+        res.json({ result, success: true, message: 'User updated successfully' })
+      }catch(error){
+        res.status(500).json({
+          success: false,
+          message: 'Something went wrong please try again',
+          error,
+        });
+      }
+  });
 
     // admin get all users transactions
     app.get('/api/admin/transactions', verifyToken, verifyAdmin, async (req, res) => {
@@ -432,17 +453,17 @@ app.patch('/api/user/comment/:id',verifyToken, async(req, res)=>{
       ]).toArray();
       res.json(result);
     })
-  // admin get all sold artworks
-  app.get('/api/admin/sold', verifyToken, verifyAdmin, async (req, res) => {
-    const result = await purchasesCollection.find().toArray();
-    res.json(result);
-  })
-// get total payments data
-  app.get('/api/admin/payments', verifyToken, verifyAdmin, async (req, res) => {
-    const result = await paymentsCollection.find().toArray();
-    const totalRevenue = result.reduce((total, sale)=> total + Number(sale.amount), 0);
-    res.json(totalRevenue);
-  })
+    // admin get all sold artworks
+    app.get('/api/admin/sold', verifyToken, verifyAdmin, async (req, res) => {
+      const result = await purchasesCollection.find().toArray();
+      res.json(result);
+    })
+    // get total payments data
+    app.get('/api/admin/payments', verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentsCollection.find().toArray();
+      const totalRevenue = result.reduce((total, sale) => total + Number(sale.amount), 0);
+      res.json(totalRevenue);
+    })
     //PLANS RELATED API
     app.get('/api/plans', async (req, res) => {
       const plan = req.query.plan;
@@ -451,7 +472,7 @@ app.patch('/api/user/comment/:id',verifyToken, async(req, res)=>{
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
