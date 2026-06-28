@@ -383,14 +383,14 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage });
     });
     //admin updater user role using user id
-    app.patch('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
+    app.patch('/api/admin/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       try {
-        const { userId } = req.query;
+        const { id } = req.params;
         const roleData = req.body;
-        const filter = { _id: new ObjectId(userId) };
+        const filter = { _id: new ObjectId(id) };
         const updateDocument = {
           $set: {
-            role: roleData,
+            role: roleData.role,
           }
         }
         const result = await userCollection.updateOne(filter, updateDocument)
