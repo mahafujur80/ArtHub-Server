@@ -318,11 +318,32 @@ app.get('/api/user/purchaseProved',verifyToken, async(req, res)=>{
   res.json(purchaseExist)
 });
 // delete comment by userId
-app.delete('/api/user/comment/:id', async(req, res)=>{
+app.delete('/api/user/comment/:id',verifyToken, async(req, res)=>{
   try{
   const {id} = req.params;
-  const result = await commentCollection.deleteOne({_id: new ObjectId(id)})
+  const result = await commentCollection.deleteOne({_id: new ObjectId(id), userId: req.user.id})
   res.json({result, success: true, message: 'Comment deleted successfully'})
+  }catch(error){
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong',
+      error,
+    });
+  } 
+});
+// update comment by userId
+app.patch('/api/user/comment/:id',verifyToken, async(req, res)=>{
+  try{
+  const {id} = req.params;
+  const data = req.body;
+  const filter = {_id: new ObjectId(id), userId: req.user.id};
+  const updateDocument = {
+    $set:{
+      comment: data.comment,
+    }
+  }
+  const result = await commentCollection.updateOne(filter, updateDocument)
+  res.json({result, success: true, message: 'Comment updated successfully'})
   }catch(error){
     res.status(500).json({
       success: false,
