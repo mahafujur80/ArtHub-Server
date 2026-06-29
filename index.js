@@ -86,8 +86,8 @@ async function run() {
 
 
     // ARTIST OPERATIONS API's
-    // get artist data by artist id for artwork profile data
-    app.get('/api/artist/profile', verifyToken, async (req, res) => {
+    // get artist data by artist id for artwork profile data after details page
+    app.get('/api/artist/profile',  async (req, res) => {
       const { artistId } = req.query;
       const artistData = await userCollection.findOne({ _id: new ObjectId(artistId) })
       res.json(artistData)
